@@ -1,16 +1,18 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"log"
+	"math/rand/v2"
 	"net"
 	"net/http"
 	"sort"
 	"strings"
 	"sync"
 
-	"github.com/gorilla/websocket"
+	"github.com/coder/websocket"
 )
 
 var addr = flag.String("addr", ":8080", "http service address")
@@ -23,7 +25,7 @@ type Client struct {
 
 func (c Client) startSend() {
 	for msg := range c.sendChan {
-		c.conn.WriteMessage(websocket.TextMessage, []byte(msg))
+		c.conn.Write(context.Background(), websocket.MessageText, []byte(msg))
 	}
 }
 
@@ -63,19 +65,19 @@ func main() {
 	}
 }
 
-var upgrader = websocket.Upgrader{
-	ReadBufferSize:  1024,
-	WriteBufferSize: 1024,
-}
-
 func serveWs(chatState *ChatState, w http.ResponseWriter, r *http.Request) {
-	conn, err := upgrader.Upgrade(w, r, nil)
+	conn, err := websocket.Accept(w, r, nil)
 	if err != nil {
 		log.Println(err)
 		return
 	}
 	client := &Client{conn: conn, sendChan: make(chan string, 256)}
-	client.nick = fmt.Sprintf("user%d", conn.RemoteAddr().(*net.TCPAddr).Port)
+	_, port, _ := net.SplitHostPort(r.RemoteAddr)
+	if port == "" {
+		port = fmt.Sprintf("%d", rand.Int32())
+	}
+
+	client.nick = fmt.Sprintf("user%s", port)
 	go client.startSend()
 
 	chatState.clientsLock.Lock()
@@ -88,18 +90,18 @@ func serveWs(chatState *ChatState, w http.ResponseWriter, r *http.Request) {
 		delete(chatState.clients, conn)
 		chatState.numClients--
 		chatState.clientsLock.Unlock()
-		conn.Close()
+		conn.Close(websocket.StatusGoingAway, "")
 	}()
 
 loop:
 	for {
-		msgType, data, err := conn.ReadMessage()
+		msgType, data, err := conn.Read(context.Background())
 		if err != nil {
 			break
 		}
 
 		switch msgType {
-		case websocket.TextMessage:
+		case websocket.MessageText:
 			msg := string(data)
 			msg = strings.TrimSpace(msg)
 			if len(msg) > 0 && msg[0] == '/' {
@@ -108,7 +110,7 @@ loop:
 				cmd := parts[0]
 				if cmd == "/nick" && len(parts) > 1 {
 					if len(parts[1]) > 32 {
-						client.conn.WriteMessage(msgType, []byte(">> 昵称太长了"))
+						client.conn.Write(context.Background(), msgType, []byte(">> 昵称太长了"))
 						continue loop
 					}
 					client.nick = parts[1]
@@ -151,9 +153,6 @@ loop:
 					return
 				}
 			}
-			if strings.ToLower(msg) == "quit" {
-				return
-			}
 
 			chatState.clientsLock.RLock()
 			for _, c := range chatState.clients {
@@ -165,11 +164,6 @@ loop:
 
 			}
 			chatState.clientsLock.RUnlock()
-		case websocket.CloseMessage:
-			return
-		case websocket.PingMessage:
-			conn.WriteMessage(websocket.PongMessage, data)
-		case websocket.PongMessage:
 		default:
 		}
 

@@ -46,8 +46,8 @@
 
     #log div {
         border-radius: 18px;
-        padding: 12px 18px;
-        margin-bottom: 15px;
+        padding: 6px 18px;
+        margin-bottom: 10px;
         max-width: 70%;
         box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
         word-wrap: break-word;
@@ -114,6 +114,77 @@
     #log::-webkit-scrollbar-thumb:hover {
         background: #555;
     }
+
+    /* 保持原有的样式不变，并添加以下新样式 */
+    #emoji-button {
+        background-color: #4CAF50;
+        color: white;
+        border: none;
+        padding: 12px 24px;
+        margin-left: 15px;
+        border-radius: 30px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+    }
+
+    #emoji-button:hover {
+        background-color: #45a049;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+    }
+
+    #emoji-picker {
+        position: absolute;
+        bottom: 100%;
+        right: 0;
+        background-color: white;
+        border: 1px solid #ccc;
+        border-radius: 5px;
+        padding: 5px;
+        display: none;
+        width: 250px; /* 稍微减小宽度 */
+        max-height: 200px;
+        overflow-y: auto;
+        flex-wrap: wrap;
+        margin-bottom: 10px;
+        box-shadow: 0 -4px 8px rgba(0, 0, 0, 0.1);
+    }
+
+    #emoji-picker span {
+        cursor: pointer;
+        padding: 2px; /* 减小内边距 */
+        font-size: 20px; /* 稍微减小字体大小 */
+        display: inline-block;
+        width: 30px; /* 减小宽度 */
+        height: 30px; /* 设置高度 */
+        text-align: center;
+        line-height: 30px; /* 垂直居中 */
+    }
+
+    /* 为 emoji 选择器添加滚动条样式 */
+    #emoji-picker::-webkit-scrollbar {
+        width: 8px;
+    }
+
+    #emoji-picker::-webkit-scrollbar-track {
+        background: #f1f1f1;
+    }
+
+    #emoji-picker::-webkit-scrollbar-thumb {
+        background: #888;
+        border-radius: 4px;
+    }
+
+    #emoji-picker::-webkit-scrollbar-thumb:hover {
+        background: #555;
+    }
+
+    /* 添加一个新的容器来包裹 emoji 按钮和选择器 */
+    #emoji-container {
+        position: relative;
+        display: inline-block;
+    }
 </style>
 </head>
 <body>
@@ -121,6 +192,10 @@
     <div id="log"></div>
     <form id="form">
         <input type="text" id="msg" placeholder="Type a message..." autocomplete="off">
+        <div id="emoji-container">
+            <button type="button" id="emoji-button"><i class="far fa-smile"></i></button>
+            <div id="emoji-picker"></div>
+        </div>
         <button type="submit"><i class="fas fa-paper-plane"></i></button>
     </form>
 </div>
@@ -183,6 +258,47 @@ window.onload = function () {
         item.innerHTML = "<b>Your browser does not support WebSockets.</b>";
         appendLog(item);
     }
+
+    // 添加 emoji 选择器相关代码
+    const emojiButton = document.getElementById('emoji-button');
+    const emojiPicker = document.getElementById('emoji-picker');
+    const msgInput = document.getElementById('msg');
+    const emojiContainer = document.getElementById('emoji-container');
+
+    // 修改 emoji 选择器创建部分
+    const emojis = [
+        '😀', '😃', '😄', '😁', '😆', '😅', '😂', '🤣', '😊', '😇',
+        '👍', '👎', '👌', '✋', '🤚', '🖐', '✌️', '🤞', '🤟', '🤘',
+        '🐶', '🐱', '🐭', '🐹', '🐰', '🦊', '🐻', '🐼', '🐨', '🐯',
+        '🍎', '🍐', '🍊', '🍋', '🍌', '🍉', '🍇', '🍓', '🍒', '🍑',
+        '⚽️', '🏀', '🏈', '⚾️', '🥎', '🎾', '🏐', '🏉', '🥏', '🎱',
+        '✈️', '🚗', '🚕', '🚙', '🚌', '🚎', '🏎', '🚓', '🚑', '🚒',
+        '💼', '🎒', '👓', '🕶', '🥽', '🥼', '🦺', '👔', '👕', '👖',
+        '❤️', '🧡', '💛', '💚', '💙', '💜', '🖤', '🤍', '🤎', '💔'
+    ];
+
+    // 创建 emoji 选择器
+    emojis.forEach(emoji => {
+        const span = document.createElement('span');
+        span.textContent = emoji;
+        span.onclick = () => {
+            msgInput.value += emoji;
+            emojiPicker.style.display = 'none';
+        };
+        emojiPicker.appendChild(span);
+    });
+
+    emojiButton.addEventListener('click', (event) => {
+        event.stopPropagation(); // 阻止事件冒泡
+        emojiPicker.style.display = emojiPicker.style.display === 'none' ? 'flex' : 'none';
+    });
+
+    // 修改点击其他地方时隐藏 emoji 选择器的逻辑
+    document.addEventListener('click', (event) => {
+        if (!emojiContainer.contains(event.target)) {
+            emojiPicker.style.display = 'none';
+        }
+    });
 };
 </script>
 </body>
