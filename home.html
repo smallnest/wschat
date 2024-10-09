@@ -206,6 +206,13 @@ window.onload = function () {
     var msg = document.getElementById("msg");
     var log = document.getElementById("log");
 
+    // 修改 ping 函数
+    function ping() {
+        if (conn && conn.readyState === WebSocket.OPEN) {
+            conn.send(new Uint8Array([0x9])); // 发送 WebSocket ping 帧
+        }
+    }
+
     function appendLog(item) {
         var doScroll = log.scrollTop > log.scrollHeight - log.clientHeight - 1;
         log.appendChild(item);
@@ -229,12 +236,21 @@ window.onload = function () {
 
     if (window["WebSocket"]) {
         conn = new WebSocket("ws://" + document.location.host + "/ws");
+        conn.onopen = function(evt) {
+            // 连接建立后，每 30 秒发送一次 ping
+            setInterval(ping, 30000);
+        };
         conn.onclose = function (evt) {
             var item = document.createElement("div");
             item.innerHTML = "<b>Connection closed.</b>";
             appendLog(item);
         };
         conn.onmessage = function (evt) {
+            // 如果收到的是 pong 帧，则忽略
+            if (evt.data instanceof ArrayBuffer && new Uint8Array(evt.data)[0] === 0xA) {
+                return; // 忽略 pong 帧
+            }
+
             var messages = evt.data.split('\n');
             for (var i = 0; i < messages.length; i++) {
                 var item = document.createElement("div");
